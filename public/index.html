@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Governed Research Brief Assistant</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <span class="eyebrow">Governed agentic AI demo</span>
+      <h1>Research, with a human at the release gate.</h1>
+      <p>Supply excerpts. Three roles plan, draft, and check a brief. You decide whether it becomes final.</p>
+      <div class="flow" aria-label="Workflow"><span>PLAN</span><b>→</b><span>ORCHESTRATE</span><b>→</b><span>EXECUTE</span><b>→</b><span>CHECK</span><b>→</b><span>HUMAN APPROVAL</span><b>→</b><span>OUTPUT</span></div>
+    </div>
+  </header>
+  <main class="wrap grid">
+    <section class="card input-panel">
+      <div class="section-title"><div><span class="eyebrow">01 / Input</span><h2>Start a research brief</h2></div><button id="sample" class="secondary" type="button">Load sample</button></div>
+      <label for="question">Research question</label>
+      <textarea id="question" rows="3" maxlength="500" placeholder="What do these sources tell us about ...?"></textarea>
+      <div class="mode-row"><label for="mode">AI mode</label><select id="mode"><option value="offline">Offline demo · reproducible</option><option value="live">Live model · API key required</option></select></div>
+      <p class="hint">URLs identify your sources. The app reads only the excerpts you paste and never fetches URLs. Avoid entering private information.</p>
+      <div class="section-title source-heading"><h3>Source packet</h3><button id="add-source" class="secondary" type="button">Add source</button></div>
+      <div id="sources"></div>
+      <button id="run" class="primary" type="button">Run agents</button>
+      <p id="message" class="message" role="status"></p>
+    </section>
+    <section class="card result-panel">
+      <span class="eyebrow">02 / Workflow</span><h2>Run status</h2>
+      <div id="empty" class="empty">Load the sample packet or enter a question and sources to begin.</div>
+      <div id="result" hidden>
+        <div id="status" class="status"></div>
+        <div id="run-meta" class="meta"></div>
+        <h3>Event history</h3><ol id="events" class="events"></ol>
+        <div id="plan-panel"></div>
+        <div id="source-panel"></div>
+        <div id="draft-panel"></div>
+        <div id="review-panel"></div>
+        <div id="approval-panel" class="approval-panel" hidden>
+          <h3>Human approval</h3>
+          <p>Read the pending draft and its evidence. Approval releases the final brief; rejection sends feedback through another draft and review.</p>
+          <label for="reviewer">Reviewer name</label><input id="reviewer" maxlength="80" placeholder="Your name">
+          <label for="feedback">Revision feedback</label><textarea id="feedback" rows="2" maxlength="1000" placeholder="What should change?"></textarea>
+          <div class="actions"><button id="revise" class="secondary" type="button">Reject and revise</button><button id="approve" class="primary" type="button">Approve brief</button></div>
+        </div>
+        <div id="final-panel" hidden><h3>Approved output</h3><pre id="final-text"></pre><a id="download" class="primary link-button">Download Markdown brief</a></div>
+      </div>
+    </section>
+  </main>
+  <footer class="wrap">Local demonstration · supplied evidence only · human approval required</footer>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
