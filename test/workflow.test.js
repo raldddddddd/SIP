@@ -100,7 +100,7 @@ test('live API failure remains an error without offline substitution', async () 
 
 test('role skill files are loaded and live requests use structured output', async () => {
   let requestBody;
-  const output = { subquestions: ['Question'], evidenceNeeds: ['Evidence'], approach: 'Bounded' };
+  const output = { subquestions: ['Question'], evidenceNeeds: ['Evidence'], approach: 'Bounded', searchQueries: ['Question'] };
   const result = await runRole('planner', 'live', { question: 'Question', sources: [] }, {
     apiKey: 'test-only', model: 'test-model',
     fetcher: async (url, options) => {

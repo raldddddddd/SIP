@@ -37,7 +37,10 @@ export function renderBrief(run) {
   lines.push('', '## Limitations', '');
   for (const limitation of run.draft.limitations) lines.push(`- ${limitation}`);
   lines.push('- Supplied source excerpts and metadata were not independently authenticated.', '', '## Supplied sources', '');
-  for (const source of run.sources) lines.push(`- [${source.id}] ${source.title.replace(/[\[\]]/g, '')} — ${source.url}`);
+  for (const source of run.sources) {
+    const provenance = source.origin === 'fetched' ? `; fetched ${source.fetchedAt}; SHA-256 ${source.sha256}` : '; user-pasted excerpt';
+    lines.push(`- [${source.id}] ${source.title.replace(/[\[\]]/g, '')} — ${source.url}${provenance}`);
+  }
   return lines.join('\n');
 }
 

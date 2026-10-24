@@ -3,9 +3,15 @@ import { sourceLooksInstructional } from './guardrails.js';
 const stop = new Set('a an and are as at be by for from has in is it of on or that the this to was were with'.split(' '));
 const words = text => new Set(String(text).toLowerCase().match(/[a-z]{3,}/g)?.filter(word => !stop.has(word)) ?? []);
 
-function firstUsableSentence(excerpt) {
+function firstUsableSentence(excerpt, question) {
   const sentences = excerpt.match(/[^.!?]+[.!?]?/g) ?? [];
-  return sentences.map(value => value.trim()).find(value => value.length >= 15 && !sourceLooksInstructional(value)) ?? '';
+  const candidates = sentences.map(value => value.trim()).filter(value => value.length >= 15 && !sourceLooksInstructional(value));
+  const queryWords = words(question);
+  candidates.sort((a, b) => {
+    const score = value => [...queryWords].filter(word => words(value).has(word)).length;
+    return score(b) - score(a);
+  });
+  return candidates[0] ?? '';
 }
 
 export function offlineRole(role, payload) {
@@ -14,12 +20,13 @@ export function offlineRole(role, payload) {
     return {
       subquestions: [question],
       evidenceNeeds: sources.map(source => `Check what ${source.id} supports and where it is limited.`),
-      approach: 'Use only the supplied excerpts and label unanswered points.'
+      approach: 'Use only the supplied excerpts and label unanswered points.',
+      searchQueries: [question]
     };
   }
   if (role === 'researcher') {
     let findings = sources.map(source => {
-      const evidence = firstUsableSentence(source.excerpt);
+      const evidence = firstUsableSentence(source.excerpt, question);
       return evidence ? { claim: evidence, sourceId: source.id, evidence } : null;
     }).filter(Boolean);
     if (revision && /short|concise|brief/i.test(feedback)) findings = findings.slice(0, 2);

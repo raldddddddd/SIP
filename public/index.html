@@ -21,7 +21,17 @@
       <label for="question">Research question</label>
       <textarea id="question" rows="3" maxlength="500" placeholder="What do these sources tell us about ...?"></textarea>
       <div class="mode-row"><label for="mode">AI mode</label><select id="mode"><option value="offline">Offline demo · reproducible</option><option value="live">Live model · API key required</option></select></div>
-      <p class="hint">URLs identify your sources. The app reads only the excerpts you paste and never fetches URLs. Avoid entering private information.</p>
+      <p class="hint">Find candidate pages, select the ones to fetch, and inspect their extracted text. You can also paste excerpts manually. Avoid entering private information.</p>
+      <div class="search-panel">
+        <h3>Find sources online</h3>
+        <label for="search-query">Search topic</label>
+        <div class="search-row"><input id="search-query" maxlength="500" placeholder="Use the research question or a focused topic"><button id="search" class="secondary" type="button">Search web</button></div>
+        <p id="search-status" class="hint" role="status">The Python sidecar must be running to search and fetch.</p>
+        <div id="search-plan" class="hint"></div>
+        <div id="search-results"></div>
+        <button id="fetch-selected" class="secondary" type="button" hidden>Fetch selected pages</button>
+        <div id="fetch-results" class="hint"></div>
+      </div>
       <div class="section-title source-heading"><h3>Source packet</h3><button id="add-source" class="secondary" type="button">Add source</button></div>
       <div id="sources"></div>
       <button id="run" class="primary" type="button">Run agents</button>
