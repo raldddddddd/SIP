@@ -1,13 +1,14 @@
 # Test record
 
-Run both suites from the project root:
+Run all three suites from the project root:
 
 ```bash
 npm test
 .venv/bin/python -m pytest sidecar/tests -q
+npm run test:ui
 ```
 
-The Node tests use temporary run directories and fake sidecar/model responses. The Python tests use HTTPX mock transport and saved HTML, so automated tests need no live search or API key.
+The Node tests use temporary run directories and fake sidecar/model responses. The Python tests use HTTPX mock transport and saved HTML. The Playwright browser suite starts `ui-tests/fixture-server.js`, which replaces only external model and search services with controlled responses while exercising the real API, orchestrator, and saved run records. Automated tests need no live search or API key; the application itself remains live-only.
 
 | Case | Expected result | Evidence |
 |---|---|---|
@@ -29,5 +30,10 @@ The Node tests use temporary run directories and fake sidecar/model responses. T
 | `robots.txt` disallow | Page request is not made. | `sidecar/tests/test_safe_fetch.py` |
 | Saved HTML fixture | Main text, title, time, and hash are returned. | `sidecar/tests/test_safe_fetch.py` |
 | Search and extraction failures | Search returns a clear error; every failed URL is reported. | `sidecar/tests/test_app.py` |
+| Editorial packet review | Saved sources show provenance, URL, hash, excerpt, removable agent snapshots, and gathering events; confirmation starts drafting. | `ui-tests/workspace.spec.js` |
+| Browser approval and export gate | Unapproved export returns 409; named approval releases the final document with automatic-gathering disclosure. | `ui-tests/workspace.spec.js` |
+| Browser errors and revision | Gathering and live model failures remain visible; failed review blocks approval; rejection reuses the confirmed packet. | `ui-tests/workspace.spec.js` |
+| Restoration and accessibility | URL-hash restoration returns to packet or review stage; keyboard focus follows stages; axe scans cover prepare, packet, review, and approval. | `ui-tests/workspace.spec.js` |
+| Responsive layout | No horizontal overflow at 320, 768, or 1440 px through prepare, packet, pending review, failed review, and approved output. | `ui-tests/workspace.spec.js` |
 
-Verified on 2026-10-24: **37 Node tests passed and 9 Python tests passed** (`npm test`, `pytest sidecar/tests`). The Node suites cover `test/workflow.test.js`, `test/improvement.test.js`, `test/auto-gather.test.js`, and `test/aggregate-review.test.js`. A manual local browser run searched for the NIST AI RMF, gathered candidate snapshots automatically, showed each extracted snapshot with final URL, fetch time, and SHA-256 at the review pause, and confirmed the packet through the Planner, Researcher, and Reviewer to `pending_approval`. A final localhost API smoke test repeated real search and fetch, confirmed export returned HTTP **409** before approval, approved a relevant cited draft, and confirmed export returned HTTP **200**. A real live model call was not made because no API credentials were supplied.
+Verified on 2026-10-25: **39 Node tests, 9 Python tests, and 13 browser tests passed**. Browser tests used controlled fixtures, including model failure and search failure; a real external model call was not made. The saved event history and source packet are the evidence for each run's actual transitions, and the release endpoint independently enforces approval.

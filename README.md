@@ -1,6 +1,6 @@
 # Governed Research Brief Assistant
 
-A local agentic AI demo that turns a research question and **optional sources** into a cited brief. Add source links or pasted excerpts of your own, or let the agent gather sources automatically on every run. You review the aggregated packet — and can remove gathered snapshots you do not trust — before drafting starts. The system plans, drafts, checks, and waits for human approval before release. The sample packet works without search, Python, or an API key.
+A local agentic AI demo that turns a research question and **optional sources** into a cited brief. Add source links or pasted excerpts of your own, or let the agent gather sources automatically on every run. You review the aggregated packet — and can remove gathered snapshots you do not trust — before drafting starts. The system plans, drafts, checks, and waits for human approval before release. Every successful run needs a configured live model; automatic gathering uses the local search sidecar.
 
 ## Run it
 
@@ -13,18 +13,13 @@ python3.11 -m venv .venv
 .venv/bin/uvicorn sidecar.app:app --host 127.0.0.1 --port 8001
 
 # Terminal 2: start the Node app
-npm start
-```
-
-Open **http://127.0.0.1:3000**. Enter a question and, if you like, add source links or pasted excerpts (**Load sample** fills the packet for a no-network demo). Choose **Run agents**: the agent searches the web, fetches pages through the sidecar, and pauses at **Source packet review** with the aggregated packet — your sources plus the auto-gathered snapshots with their final URL, fetch time, and SHA-256. Remove any gathered snapshot you do not trust and confirm to start drafting. Successful extracted snapshots appear in the source packet; failures remain visible as errors and are not silently omitted. A run with no sources left cannot draft — keep at least one.
-
-Inspect the plan, exact source packet, pending draft, reviewer findings, and event history. Enter a reviewer name and either **Reject and revise** with feedback or **Approve brief**. Only approval unlocks the final Markdown output.
-
-For live model calls, set credentials on the Node server:
-
-```bash
+npm install
 OPENAI_API_KEY=your_key OPENAI_MODEL=gpt-4.1-mini npm start
 ```
+
+Open **http://127.0.0.1:3000**. The editorial workspace has three stages: **Prepare sources → Review the brief → Approve and export**. Enter a question and optionally add up to six source links or pasted excerpts. **Load sample packet** fills the form; it does not provide a credential-free run. Choose **Gather sources**: the live Planner proposes queries, the sidecar searches and fetches pages, and the app pauses within Prepare sources to inspect the saved packet. The packet labels user-supplied and auto-gathered sources and shows final URL, fetch time, hash, and excerpt. Remove any agent snapshot you do not trust, then choose **Confirm packet and draft**. Fetch failures remain visible in the gathering event history. A run with no sources left cannot draft.
+
+Inspect the plan, exact source packet, pending draft, reviewer findings, and event history. Enter a reviewer name and either **Reject and revise** with feedback or **Approve brief**. Only approval unlocks the final Markdown output.
 
 `OPENAI_BASE_URL` defaults to `https://api.openai.com/v1` and may point to an HTTPS or localhost HTTP Responses-compatible server. `OPENAI_RESPONSE_FORMAT` defaults to `json_schema`; use `json_object` or `text` when a compatible server lacks strict schema support. Every response is validated, with one retry for invalid output. A failed live call remains an error; the app never silently switches to offline output. `SIDECAR_BASE_URL` defaults to `http://127.0.0.1:8001` and accepts only local HTTP. Set `PORT` for the Node port and `DATA_DIR` for run records.
 
@@ -33,7 +28,11 @@ Run the automated checks:
 ```bash
 npm test
 .venv/bin/python -m pytest sidecar/tests -q
+npx playwright install chromium
+npm run test:ui
 ```
+
+The browser suite uses a controlled live-role and search fixture. It makes no external model or search requests and does not enable an offline application mode.
 
 ## What happens to sources
 

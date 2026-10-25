@@ -81,7 +81,7 @@ export function createOrchestrator(store, options = {}) {
 
   async function gatherSources(run, linkSources = []) {
     if (!searchClient || !snapshotRegistry) {
-      throw new Error('Automatic source gathering is unavailable. Add a source or search the web manually.');
+      throw new Error('Automatic source gathering is unavailable. Check the local search sidecar.');
     }
     const queryPlan = await roleRunner('planner', run.mode, { question: run.question, sources: run.sources, feedback: '', revision: run.revision });
     const queries = (queryPlan.searchQueries ?? [])
@@ -163,7 +163,7 @@ export function createOrchestrator(store, options = {}) {
     run.sources = run.sources.filter(source => source.origin !== 'link');
     if (!searchClient || !snapshotRegistry) {
       if (linkSources.length || !run.sources.length) {
-        throw new Error('Automatic source gathering is unavailable. Add a source or search the web manually.');
+        throw new Error('Automatic source gathering is unavailable. Check the local search sidecar.');
       }
     } else {
       await gatherSources(run, linkSources);

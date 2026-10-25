@@ -8,7 +8,7 @@ A short research summary can sound authoritative even when its evidence is thin.
 
 The user enters a research question and may add source links and pasted excerpts of their own. The Planner proposes search queries; the Python sidecar searches the web and fetches candidate snapshots automatically. The user then reviews the aggregated packet — their own sources plus the agent-gathered snapshots (each with final URL, fetch time, and text hash) — and can remove any snapshot they do not trust before drafting begins. The Researcher writes a pending summary and findings, each tied to one source ID and an evidence quote. Deterministic checks verify source IDs and quote presence against the saved snapshot. The Reviewer assesses support and uncertainty. If checks pass, a person approves or rejects the draft with feedback. Rejection triggers another full pass. Approval releases a downloadable Markdown brief, which discloses which sources were gathered automatically rather than supplied by the user. Every transition is saved in a local run record.
 
-The three role instructions live in separate `SKILL.md` files and are loaded at runtime. Each role makes a distinct structured-output model call through the OpenAI Responses API (env-configurable base URL). The app exposes a status endpoint that reports whether a model key is configured and whether the sidecar is reachable; it never returns or echoes the key itself.
+The three role instructions live in separate `SKILL.md` files and are loaded at runtime. Each role makes a distinct structured-output model call through the OpenAI Responses API (env-configurable base URL). The API key stays on the Node server. The browser never receives it.
 
 ## Human oversight
 

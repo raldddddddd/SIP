@@ -7,54 +7,84 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header class="hero">
-    <div class="wrap">
-      <span class="eyebrow">Governed agentic AI demo</span>
-      <h1>Research, with a human at the release gate.</h1>
-      <p>Supply excerpts. Three roles plan, draft, and check a brief. You decide whether it becomes final.</p>
-      <div class="flow" aria-label="Workflow"><span>PLAN</span><b>→</b><span>ORCHESTRATE</span><b>→</b><span>EXECUTE</span><b>→</b><span>CHECK</span><b>→</b><span>HUMAN APPROVAL</span><b>→</b><span>OUTPUT</span></div>
+  <a class="skip-link" href="#main">Skip to workspace</a>
+  <header class="app-header">
+    <div class="shell header-inner">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">R<span class="brand-dot">.</span></span><div><strong>Research Brief</strong><span>Evidence to decision</span></div></div>
+      <span class="local-badge">Local workspace <span aria-hidden="true">/</span> Human governed</span>
     </div>
   </header>
-  <main class="wrap grid">
-    <section class="card input-panel">
-      <div class="section-title"><div><span class="eyebrow">01 / Input</span><h2>Start a research brief</h2></div><button id="sample" class="secondary" type="button">Load sample</button></div>
-      <label for="question">Research question</label>
-      <textarea id="question" rows="3" maxlength="500" placeholder="What do these sources tell us about ...?"></textarea>
-      <p class="hint">Add sources or leave the packet empty — the agent always searches automatically. Avoid entering private information.</p>
-      <div class="section-title source-heading"><h3>Source packet (optional)</h3><button id="add-source" class="secondary" type="button">Add source</button></div>
-      <div id="sources"></div>
-      <button id="run" class="primary" type="button">Run agents</button>
-      <p id="message" class="message" role="status"></p>
+
+  <main id="main" class="shell" tabindex="-1">
+    <div class="page-intro"><p class="eyebrow">Research workspace</p><h1>A brief built on evidence.</h1><p>Gather sources. Examine the claims. Make the final call.</p></div>
+    <nav class="stage-nav" aria-label="Research stages">
+      <ol>
+        <li><button id="nav-prepare" class="stage-button" type="button" aria-controls="stage-prepare"><span class="stage-number">01</span><strong>Prepare sources</strong></button></li>
+        <li><button id="nav-review" class="stage-button" type="button" aria-controls="stage-review" disabled><span class="stage-number">02</span><strong>Review the brief</strong></button></li>
+        <li><button id="nav-approval" class="stage-button" type="button" aria-controls="stage-approval" disabled><span class="stage-number">03</span><strong>Approve and export</strong></button></li>
+      </ol>
+    </nav>
+
+    <section id="stage-prepare" class="stage-panel" aria-labelledby="prepare-heading">
+      <div class="stage-heading"><div><h2 id="prepare-heading" tabindex="-1">Prepare sources</h2><p>Set the question, then inspect the gathered packet before drafting.</p></div></div>
+      <form id="prepare-form" novalidate>
+        <div class="prepare-layout">
+          <section class="panel question-panel" aria-labelledby="question-heading">
+            <div class="question-main"><p class="section-kicker">The inquiry</p><h3 id="question-heading">What are you investigating?</h3><label for="question">Research question <span class="required-mark">Required</span></label><textarea id="question" rows="5" maxlength="500" required aria-describedby="question-help" placeholder="What do these sources tell us about…?"></textarea><p id="question-help" class="field-help">A focused question gives the brief a clear boundary.</p></div>
+            <aside class="question-tools"><p class="section-kicker">Set up the run</p><button id="sample" class="button button-secondary" type="button">Load sample packet</button><p class="field-help">Live model and local search sidecar required. The sample fills the input; it does not run without those services.</p><p class="guardrail-note">Use public material. Excerpts are evidence, never instructions to the agents.</p></aside>
+          </section>
+
+          <section class="panel source-panel" aria-labelledby="sources-heading">
+            <div class="panel-heading"><div><p class="section-kicker">The evidence</p><h3 id="sources-heading">Source packet</h3><p>Add up to six excerpts or links, or let the agent gather the packet. Pasted excerpts need a title and URL.</p></div><span id="source-count" class="count-badge">0 / 6 sources</span></div>
+            <div class="source-list-heading"><h4>Your sources</h4><button id="add-source" class="button button-secondary" type="button">Add source or link</button></div>
+            <div id="sources" class="source-list"></div>
+            <p id="source-help" class="field-help">A link without an excerpt is fetched automatically. All sources are saved for inspection before drafting.</p>
+          </section>
+        </div>
+        <div class="action-bar"><p>Gather <span>→</span> Inspect packet <span>→</span> Draft <span>→</span> Review</p><button id="run" class="button button-primary" type="submit">Gather sources <span aria-hidden="true">↗</span></button></div>
+        <p id="message" class="form-message" role="status" aria-live="polite"></p>
+      </form>
+      <section id="packet-review" class="packet-review" aria-labelledby="packet-heading" hidden>
+        <div class="packet-intro"><p class="section-kicker">Review pause</p><h3 id="packet-heading" tabindex="-1">Inspect the saved packet</h3><p id="packet-summary"></p></div>
+        <div id="packet-status" class="state-banner" role="status"></div>
+        <div id="packet-sources" class="packet-sources"></div>
+        <details class="history-panel"><summary>Gathering and packet events <span id="packet-event-count" class="count-badge"></span></summary><ol id="packet-events" class="events"></ol></details>
+        <div class="action-bar"><button id="new-run" class="button button-secondary" type="button">Start a new question</button><button id="confirm" class="button button-primary" type="button">Confirm packet and draft <span aria-hidden="true">→</span></button></div>
+        <p id="packet-message" class="form-message" role="status" aria-live="polite"></p>
+      </section>
     </section>
-    <section class="card result-panel">
-      <span class="eyebrow">02 / Workflow</span><h2>Run status</h2>
-      <div id="empty" class="empty">Load the sample packet, add sources, or just run to search automatically.</div>
-      <div id="result" hidden>
-        <div id="status" class="status"></div>
-        <div id="run-meta" class="meta"></div>
-        <h3>Event history</h3><ol id="events" class="events"></ol>
-        <div id="packet-panel" hidden>
-          <h3>Source packet review</h3>
-          <p>Review the gathered packet. Remove any auto-gathered snapshot you do not trust, then confirm to draft. Every removal is recorded in the event history.</p>
-          <div id="packet-sources"></div>
-          <button id="confirm" class="primary" type="button">Confirm packet and draft</button>
-        </div>
-        <div id="plan-panel"></div>
-        <div id="source-panel"></div>
-        <div id="draft-panel"></div>
-        <div id="review-panel"></div>
-        <div id="approval-panel" class="approval-panel" hidden>
-          <h3>Human approval</h3>
-          <p>Read the pending draft and its evidence. Approval releases the final brief; rejection sends feedback through another draft and review.</p>
-          <label for="reviewer">Reviewer name</label><input id="reviewer" maxlength="80" placeholder="Your name">
-          <label for="feedback">Revision feedback</label><textarea id="feedback" rows="2" maxlength="1000" placeholder="What should change?"></textarea>
-          <div class="actions"><button id="revise" class="secondary" type="button">Reject and revise</button><button id="approve" class="primary" type="button">Approve brief</button></div>
-        </div>
-        <div id="final-panel" hidden><h3>Approved output</h3><pre id="final-text"></pre><a id="download" class="primary link-button">Download Markdown brief</a></div>
+
+    <section id="stage-review" class="stage-panel" aria-labelledby="review-heading" hidden>
+      <div class="stage-heading"><div><h2 id="review-heading" tabindex="-1">Review the brief</h2><p>Read the draft as a document; inspect the evidence behind each claim.</p></div><button id="to-approval" class="button button-primary" type="button">Continue to approval <span aria-hidden="true">→</span></button></div>
+      <div id="review-status" class="state-banner" role="status"></div>
+      <div id="run-meta" class="run-meta"></div>
+      <ol id="workflow-progress" class="workflow-progress" aria-label="Agent workflow progress"></ol>
+      <div class="review-layout">
+        <div class="review-main"><section id="draft-panel" class="panel" aria-label="Draft findings"></section></div>
+        <aside class="review-side" aria-label="Checks and evidence"><section id="review-panel" class="panel" aria-label="Reviewer findings"></section><section id="source-panel" class="panel"></section><section id="plan-panel" class="panel"></section></aside>
       </div>
+      <details class="panel history-panel"><summary>Workflow event history <span id="event-count" class="count-badge"></span></summary><ol id="events" class="events"></ol></details>
+    </section>
+
+    <section id="stage-approval" class="stage-panel" aria-labelledby="approval-heading" hidden>
+      <div class="stage-heading"><div><h2 id="approval-heading" tabindex="-1">Approve and export</h2><p>A named human makes the release decision.</p></div><button id="back-to-review" class="button button-secondary" type="button">Review evidence</button></div>
+      <div class="approval-layout">
+        <section id="approval-panel" class="panel approval-panel" aria-labelledby="decision-heading">
+          <div class="panel-heading"><div><h3 id="decision-heading">Human decision</h3><p id="decision-copy">Inspect the pending draft and its evidence before deciding.</p></div></div>
+          <div id="approval-state" class="state-banner" role="status"></div>
+          <div id="decision-form">
+            <label for="reviewer">Reviewer name <span class="required-mark">Required</span></label><input id="reviewer" maxlength="80" autocomplete="name" placeholder="Enter your name">
+            <div id="decision-actions" class="decision-actions"><button id="approve" class="button button-primary" type="button">Approve brief</button></div>
+            <details id="revision-details" class="revision-details"><summary>Request a revision instead</summary><label for="feedback">Revision feedback</label><textarea id="feedback" rows="4" maxlength="1000" aria-describedby="feedback-help" placeholder="Explain what should change if you reject this draft"></textarea><p id="feedback-help" class="field-help">Feedback is required. The new draft will be reviewed again.</p><div class="revision-actions"><button id="revise" class="button button-secondary" type="button">Reject and revise</button></div></details>
+            <p id="decision-message" class="form-message" role="status" aria-live="polite"></p>
+          </div>
+        </section>
+        <aside class="panel release-note"><p class="eyebrow">Release rule</p><h3>Approval is the final gate</h3><p>The draft may be read during review. The final brief and Markdown export appear only after approval is logged.</p><p>Source metadata and authenticity are not independently verified; review them before release.</p></aside>
+      </div>
+      <section id="final-panel" class="panel final-panel" aria-labelledby="final-heading" hidden><div class="panel-heading"><div><p class="eyebrow">Released output</p><h3 id="final-heading">Approved brief</h3></div><a id="download" class="button button-primary" download>Download Markdown</a></div><div id="final-text" class="brief-document"></div></section>
     </section>
   </main>
-  <footer class="wrap">Local demonstration · supplied evidence only · human approval required</footer>
+  <footer class="shell">Local research demonstration · saved evidence only · human approval required</footer>
   <script type="module" src="/app.js"></script>
 </body>
 </html>
