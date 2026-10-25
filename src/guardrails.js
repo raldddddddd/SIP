@@ -4,17 +4,30 @@ const injectionPattern = /ignore\s+(all\s+|any\s+)?(previous|prior|above)\s+inst
 
 export function normalizeInput(input) {
   if (!input || typeof input !== 'object') throw new Error('Provide a question and sources.');
+  const mode = input.mode === undefined || input.mode === null || input.mode === '' ? 'live' : input.mode;
+  if (mode !== 'live') throw new Error('Live mode required.');
   const question = String(input.question ?? '').trim();
   if (!question || question.length > 500) throw new Error('Question must be 1–500 characters.');
-  if (!Array.isArray(input.sources) || input.sources.length < 1 || input.sources.length > 8) {
-    throw new Error('Provide 1–8 sources.');
+  if (!Array.isArray(input.sources) || input.sources.length > 6) {
+    throw new Error('Provide 0–6 sources.');
   }
   const sources = input.sources.map((source, index) => {
     const title = String(source?.title ?? '').replace(/\s+/g, ' ').trim();
     const url = String(source?.url ?? '').trim();
     const excerpt = String(source?.excerpt ?? '').trim();
-    if (!title || title.length > 200) throw new Error(`Source ${index + 1}: title must be 1–200 characters.`);
-    const origin = source?.origin === 'fetched' ? 'fetched' : 'pasted';
+    if (title.length > 200) throw new Error(`Source ${index + 1}: title must be at most 200 characters.`);
+    const origin = source?.origin === 'fetched' ? 'fetched' : source?.excerpt ? 'pasted' : 'link';
+    if (origin !== 'link' && !title) throw new Error(`Source ${index + 1}: title must be 1–200 characters.`);
+    if (origin === 'link') {
+      if (excerpt) throw new Error(`Source ${index + 1}: a link source takes a URL and optional title, no excerpt.`);
+      try {
+        const parsed = new URL(url);
+        if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
+      } catch {
+        throw new Error(`Source ${index + 1}: enter an http or https URL.`);
+      }
+      return { id: `S${index + 1}`, title: title || url, url, excerpt: '', origin, requestedUrl: null, fetchedAt: null, sha256: null };
+    }
     const limit = origin === 'fetched' ? 6000 : 5000;
     if (!excerpt || excerpt.length > limit) throw new Error(`Source ${index + 1}: excerpt must be 1–${limit} characters.`);
     try {
@@ -39,8 +52,6 @@ export function normalizeInput(input) {
     }
     return { id: `S${index + 1}`, title, url, excerpt, origin, requestedUrl: null, fetchedAt: null, sha256: null };
   });
-  const mode = input.mode === 'live' ? 'live' : input.mode === 'offline' ? 'offline' : null;
-  if (!mode) throw new Error('Choose offline or live mode.');
   return { question, sources, mode };
 }
 

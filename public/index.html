@@ -20,30 +20,25 @@
       <div class="section-title"><div><span class="eyebrow">01 / Input</span><h2>Start a research brief</h2></div><button id="sample" class="secondary" type="button">Load sample</button></div>
       <label for="question">Research question</label>
       <textarea id="question" rows="3" maxlength="500" placeholder="What do these sources tell us about ...?"></textarea>
-      <div class="mode-row"><label for="mode">AI mode</label><select id="mode"><option value="offline">Offline demo · reproducible</option><option value="live">Live model · API key required</option></select></div>
-      <p class="hint">Find candidate pages, select the ones to fetch, and inspect their extracted text. You can also paste excerpts manually. Avoid entering private information.</p>
-      <div class="search-panel">
-        <h3>Find sources online</h3>
-        <label for="search-query">Search topic</label>
-        <div class="search-row"><input id="search-query" maxlength="500" placeholder="Use the research question or a focused topic"><button id="search" class="secondary" type="button">Search web</button></div>
-        <p id="search-status" class="hint" role="status">The Python sidecar must be running to search and fetch.</p>
-        <div id="search-plan" class="hint"></div>
-        <div id="search-results"></div>
-        <button id="fetch-selected" class="secondary" type="button" hidden>Fetch selected pages</button>
-        <div id="fetch-results" class="hint"></div>
-      </div>
-      <div class="section-title source-heading"><h3>Source packet</h3><button id="add-source" class="secondary" type="button">Add source</button></div>
+      <p class="hint">Add sources or leave the packet empty — the agent always searches automatically. Avoid entering private information.</p>
+      <div class="section-title source-heading"><h3>Source packet (optional)</h3><button id="add-source" class="secondary" type="button">Add source</button></div>
       <div id="sources"></div>
       <button id="run" class="primary" type="button">Run agents</button>
       <p id="message" class="message" role="status"></p>
     </section>
     <section class="card result-panel">
       <span class="eyebrow">02 / Workflow</span><h2>Run status</h2>
-      <div id="empty" class="empty">Load the sample packet or enter a question and sources to begin.</div>
+      <div id="empty" class="empty">Load the sample packet, add sources, or just run to search automatically.</div>
       <div id="result" hidden>
         <div id="status" class="status"></div>
         <div id="run-meta" class="meta"></div>
         <h3>Event history</h3><ol id="events" class="events"></ol>
+        <div id="packet-panel" hidden>
+          <h3>Source packet review</h3>
+          <p>Review the gathered packet. Remove any auto-gathered snapshot you do not trust, then confirm to draft. Every removal is recorded in the event history.</p>
+          <div id="packet-sources"></div>
+          <button id="confirm" class="primary" type="button">Confirm packet and draft</button>
+        </div>
         <div id="plan-panel"></div>
         <div id="source-panel"></div>
         <div id="draft-panel"></div>

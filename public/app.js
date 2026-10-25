@@ -1,20 +1,26 @@
 const $ = id => document.getElementById(id);
 let currentRun = null;
 
+function sourceCount() {
+  return document.querySelectorAll('.source-card').length;
+}
+
 function sourceCard(source = {}) {
   const card = document.createElement('div');
   card.className = 'source-card';
-  card.innerHTML = '<div class="source-top"><strong>Source</strong><button type="button" class="remove secondary">Remove</button></div><label>Title<input class="source-title" maxlength="200"></label><label>URL<input class="source-url" type="url" placeholder="https://..."></label><label>Excerpt<textarea class="source-excerpt" rows="5" maxlength="6000" placeholder="Paste the evidence to analyze"></textarea></label>';
-  card.sourceMeta = source.origin === 'fetched' ? { origin: 'fetched', snapshotId: source.snapshotId } : { origin: 'pasted' };
+  card.innerHTML = '<div class="source-top"><strong>Source</strong><button type="button" class="remove secondary">Remove</button></div><label>Title<input class="source-title" maxlength="200"></label><label>URL<input class="source-url" type="url" placeholder="https://..."></label><label>Excerpt<textarea class="source-excerpt" rows="5" maxlength="5000" placeholder="Paste the evidence to analyze — or leave empty to fetch this URL"></textarea></label>';
+  card.sourceMeta = { origin: 'pasted' };
   card.querySelector('.source-title').value = source.title ?? '';
   card.querySelector('.source-url').value = source.url ?? '';
   card.querySelector('.source-excerpt').value = source.excerpt ?? '';
-  if (source.origin === 'fetched') {
-    card.querySelector('strong').textContent = `Fetched snapshot · ${source.fetchedAt ?? ''}`;
-    for (const field of card.querySelectorAll('input, textarea')) field.readOnly = true;
-  }
   card.querySelector('.remove').onclick = () => card.remove();
+  if (sourceCount() >= 6) $('message').textContent = 'A brief supports at most 6 sources.';
   $('sources').append(card);
+}
+
+function provenanceLabel(source) {
+  if (source.suppliedBy === 'agent') return 'auto-gathered';
+  return source.origin === 'fetched' ? 'user-supplied · fetched link' : 'user-supplied · pasted excerpt';
 }
 
 function element(tag, text, className = '') {
@@ -25,7 +31,7 @@ function element(tag, text, className = '') {
 }
 
 function setBusy(busy) {
-  for (const id of ['run', 'approve', 'revise', 'search', 'fetch-selected']) $(id).disabled = busy;
+  for (const id of ['run', 'approve', 'revise', 'confirm']) $(id).disabled = busy;
   if (busy) $('message').textContent = 'Agents are working…';
   else if ($('message').textContent === 'Agents are working…') $('message').textContent = '';
 }
@@ -34,6 +40,7 @@ async function request(path, options = {}) {
   const response = await fetch(path, { ...options, headers: { 'content-type': 'application/json' } });
   const body = await response.json();
   if (!response.ok && !body.id) throw new Error(body.error ?? 'Request failed.');
+  if (body.id && body.error) throw new Error(body.error);
   return body;
 }
 
@@ -48,12 +55,42 @@ function render(run) {
   $('result').hidden = false;
   $('status').textContent = run.status.replaceAll('_', ' ').toUpperCase();
   $('status').className = `status ${run.status}`;
-  $('run-meta').textContent = `Run ${run.id} · ${run.mode.toUpperCase()} mode · revision ${run.revision}`;
+  $('run-meta').textContent = `Run ${run.id} · live mode · revision ${run.revision}`;
   $('events').replaceChildren();
   for (const item of run.events) {
     const li = element('li', `${item.stage} · ${item.message}`);
     li.append(element('small', new Date(item.at).toLocaleString()));
     $('events').append(li);
+  }
+  const awaitingConfirmation = run.status === 'packet_review';
+  $('packet-panel').hidden = !awaitingConfirmation;
+  const packetSources = $('packet-sources');
+  packetSources.replaceChildren();
+  if (awaitingConfirmation) {
+    if (!run.sources.length) packetSources.append(element('p', 'The packet is empty. At least one source is required before drafting.', 'bad'));
+    for (const source of run.sources) {
+      const item = element('div', '', 'source-review');
+      item.append(element('strong', `${source.id} · ${source.title} · ${provenanceLabel(source)}`));
+      const link = element('a', source.url);
+      link.href = source.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      item.append(link);
+      if (source.origin === 'fetched') item.append(element('small', `Fetched ${source.fetchedAt} · SHA-256 ${source.sha256}`, 'hint'));
+      else item.append(element('blockquote', source.excerpt));
+      if (source.suppliedBy === 'agent') {
+        const remove = element('button', 'Remove this snapshot', 'secondary');
+        remove.type = 'button';
+        remove.onclick = async () => {
+          setBusy(true);
+          try { render(await request(`/api/runs/${run.id}/sources/${source.id}`, { method: 'DELETE' })); }
+          catch (error) { $('message').textContent = error.message; }
+          finally { setBusy(false); }
+        };
+        item.append(remove);
+      }
+      packetSources.append(item);
+    }
   }
   const plan = $('plan-panel');
   plan.replaceChildren();
@@ -64,10 +101,10 @@ function render(run) {
     plan.append(list);
   }
   const sourcePanel = $('source-panel');
-  sourcePanel.replaceChildren(element('h3', 'Supplied source packet'));
+  sourcePanel.replaceChildren(element('h3', run.autoGathered ? 'Confirmed source packet (includes auto-gathered sources, not human-selected)' : 'Confirmed source packet'));
   for (const source of run.sources) {
     const item = element('div', '', 'source-review');
-    item.append(element('strong', `${source.id} · ${source.title}`));
+    item.append(element('strong', `${source.id} · ${source.title} · ${provenanceLabel(source)}`));
     const link = element('a', source.url);
     link.href = source.url;
     link.target = '_blank';
@@ -119,56 +156,16 @@ function buildFinalPreview(run) {
     'Summary', run.draft.summary, '', 'Findings',
     ...run.draft.findings.map(item => `• ${item.claim} [${item.sourceId}]`), '',
     'Limitations', ...run.draft.limitations.map(item => `• ${item}`),
-    '• Supplied source excerpts and metadata were not independently authenticated.', '',
-    'Supplied sources', ...run.sources.map(source => `• [${source.id}] ${source.title} — ${source.url}${source.origin === 'fetched' ? ` · fetched ${source.fetchedAt} · SHA-256 ${source.sha256}` : ' · pasted excerpt'}`)
+    '• Supplied source excerpts and metadata were not independently authenticated.',
+    ...(run.sources.some(source => source.suppliedBy === 'agent') ? ['• Sources were gathered automatically from web search and were not selected by a human.'] : []),
+    '',
+    'Supplied sources', ...run.sources.map(source => `• [${source.id}] ${source.title} — ${source.url}${source.origin === 'fetched' ? ` · fetched ${source.fetchedAt} · SHA-256 ${source.sha256}` : ' · user-pasted excerpt'} · ${source.suppliedBy === 'agent' ? 'auto-gathered' : 'user-supplied'}`)
   ].join('\n');
 }
 
-$('add-source').onclick = () => sourceCard();
-$('search').onclick = async () => {
-  const query = $('search-query').value.trim() || $('question').value.trim();
-  if (!query) { $('search-status').textContent = 'Enter a question or search topic first.'; return; }
-  setBusy(true);
-  $('search-status').textContent = 'Planner is preparing queries and searching…';
-  $('search-results').replaceChildren();
-  $('fetch-selected').hidden = true;
-  try {
-    const data = await request('/api/search', { method: 'POST', body: JSON.stringify({ query, mode: $('mode').value }) });
-    $('search-plan').textContent = `Planner queries: ${data.queries.join(' · ')}`;
-    $('search-status').textContent = `${data.results.length} candidate results. Select pages to fetch.`;
-    for (const result of data.results) {
-      const label = element('label', '', 'search-result');
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox'; checkbox.value = result.url;
-      label.append(checkbox, element('strong', result.title), element('small', result.url), element('span', result.snippet));
-      $('search-results').append(label);
-    }
-    $('fetch-selected').hidden = data.results.length === 0;
-  } catch (error) { $('search-status').textContent = `${error.message} Manual paste remains available.`; }
-  finally { setBusy(false); }
-};
-$('fetch-selected').onclick = async () => {
-  const urls = [...$('search-results').querySelectorAll('input:checked')].map(input => input.value);
-  if (!urls.length || urls.length > 8) { $('fetch-results').textContent = 'Select 1–8 results.'; return; }
-  const existing = [...document.querySelectorAll('.source-card')].filter(card =>
-    card.sourceMeta.origin === 'fetched' ||
-    card.querySelector('.source-title').value.trim() ||
-    card.querySelector('.source-url').value.trim() ||
-    card.querySelector('.source-excerpt').value.trim()).length;
-  if (existing + urls.length > 8) { $('fetch-results').textContent = 'A brief supports at most 8 sources. Remove some sources or select fewer results.'; return; }
-  setBusy(true);
-  $('fetch-results').textContent = 'Fetching selected pages…';
-  try {
-    const pages = await request('/api/fetch', { method: 'POST', body: JSON.stringify({ urls }) });
-    let added = 0;
-    const failures = [];
-    for (const page of pages) {
-      if (page.ok) { sourceCard(page); added++; }
-      else failures.push(`${page.url}: ${page.error}`);
-    }
-    $('fetch-results').textContent = `${added} snapshots added. ${failures.length ? `Failed: ${failures.join(' | ')}` : ''}`;
-  } catch (error) { $('fetch-results').textContent = `${error.message} Manual paste remains available.`; }
-  finally { setBusy(false); }
+$('add-source').onclick = () => {
+  if (sourceCount() >= 6) { $('message').textContent = 'A brief supports at most 6 sources.'; return; }
+  sourceCard();
 };
 $('sample').onclick = async () => {
   try {
@@ -182,15 +179,27 @@ $('sample').onclick = async () => {
 $('run').onclick = async () => {
   setBusy(true);
   try {
-    const sources = [...document.querySelectorAll('.source-card')].map(card => ({
-      title: card.querySelector('.source-title').value,
-      url: card.querySelector('.source-url').value,
-      excerpt: card.querySelector('.source-excerpt').value,
-      ...card.sourceMeta
-    })).filter(source => source.origin === 'fetched' || source.title.trim() || source.url.trim() || source.excerpt.trim());
-    const run = await request('/api/runs', { method: 'POST', body: JSON.stringify({ question: $('question').value, sources, mode: $('mode').value }) });
+    const sources = [...document.querySelectorAll('.source-card')].map(card => {
+      const title = card.querySelector('.source-title').value;
+      const url = card.querySelector('.source-url').value;
+      const excerpt = card.querySelector('.source-excerpt').value;
+      return excerpt.trim() ? { title, url, excerpt } : { title, url };
+    }).filter(source => source.title.trim() || source.url.trim() || source.excerpt?.trim());
+    if (!sources.length) $('message').textContent = 'No sources supplied; the agent will search automatically…';
+    const run = await request('/api/runs', { method: 'POST', body: JSON.stringify({ question: $('question').value, sources }) });
+    const hasLinks = sources.some(source => !source.excerpt);
+    if (run.status === 'packet_review') $('message').textContent = `Packet ready: ${run.sources.length} source${run.sources.length === 1 ? '' : 's'}${hasLinks ? ' (user links fetched)' : ''}. Review and confirm to draft.`;
+    else if (run.status === 'error') $('message').textContent = run.error;
     render(run);
   } catch (error) { $('message').textContent = error.message; }
+  finally { setBusy(false); }
+};
+$('confirm').onclick = async () => {
+  if (!currentRun) return;
+  setBusy(true);
+  $('message').textContent = 'Drafting from the confirmed packet…';
+  try { render(await request(`/api/runs/${currentRun.id}/confirm`, { method: 'POST', body: '{}' })); }
+  catch (error) { $('message').textContent = error.message; }
   finally { setBusy(false); }
 };
 $('approve').onclick = async () => {

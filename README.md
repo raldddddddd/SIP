@@ -1,6 +1,6 @@
 # Governed Research Brief Assistant
 
-A local agentic AI demo that turns a research question and **human-selected source snapshots or pasted excerpts** into a cited brief. The system plans, drafts, checks, and waits for human approval before release. The sample packet works without search, Python, or an API key.
+A local agentic AI demo that turns a research question and **optional sources** into a cited brief. Add source links or pasted excerpts of your own, or let the agent gather sources automatically on every run. You review the aggregated packet — and can remove gathered snapshots you do not trust — before drafting starts. The system plans, drafts, checks, and waits for human approval before release. The sample packet works without search, Python, or an API key.
 
 ## Run it
 
@@ -16,11 +16,11 @@ python3.11 -m venv .venv
 npm start
 ```
 
-Open **http://127.0.0.1:3000**. For a no-network demo, choose **Load sample** and **Run agents** in **Offline demo** mode. For automatic source gathering, enter a question, choose **Search web**, inspect the results, select pages, and choose **Fetch selected pages**. Successful extracted snapshots appear in the source packet. Failed pages remain visible as errors and are not silently omitted. You can always paste an excerpt instead.
+Open **http://127.0.0.1:3000**. Enter a question and, if you like, add source links or pasted excerpts (**Load sample** fills the packet for a no-network demo). Choose **Run agents**: the agent searches the web, fetches pages through the sidecar, and pauses at **Source packet review** with the aggregated packet — your sources plus the auto-gathered snapshots with their final URL, fetch time, and SHA-256. Remove any gathered snapshot you do not trust and confirm to start drafting. Successful extracted snapshots appear in the source packet; failures remain visible as errors and are not silently omitted. A run with no sources left cannot draft — keep at least one.
 
 Inspect the plan, exact source packet, pending draft, reviewer findings, and event history. Enter a reviewer name and either **Reject and revise** with feedback or **Approve brief**. Only approval unlocks the final Markdown output.
 
-For live model calls, set credentials on the Node server and select **Live model**:
+For live model calls, set credentials on the Node server:
 
 ```bash
 OPENAI_API_KEY=your_key OPENAI_MODEL=gpt-4.1-mini npm start
@@ -37,7 +37,7 @@ npm test
 
 ## What happens to sources
 
-The Planner skill proposes one or two search queries. The Python sidecar uses `ddgs` with its DuckDuckGo backend to find candidate results. **A human chooses which results to fetch.** The sidecar checks URLs and resolved addresses, respects `robots.txt`, checks each redirect, accepts only HTML or plain text, caps downloads at 2 MB, and extracts up to 6,000 characters with Trafilatura. It returns the final URL, fetch time, and SHA-256 of the extracted text. The Node server holds that snapshot until a run starts and saves its exact text in the run record. Citation checks use the saved snapshot, never a later re-fetch.
+The Planner skill proposes one or two search queries. The Python sidecar uses `ddgs` with its DuckDuckGo backend to find candidate results. **The agent fetches the deduplicated results itself** — every run gathers automatically, deduped against your supplied links, up to the 6-source packet cap (including your sources) — and the brief discloses that these sources were not human-selected. Before drafting, you review the packet and may remove gathered snapshots; the run pauses at `packet_review` and nothing is dropped silently. Links you supply are fetched at run start and listed as user-supplied. The sidecar checks URLs and resolved addresses, respects `robots.txt`, checks each redirect, accepts only HTML or plain text, caps downloads at 2 MB, and extracts up to 6,000 characters with Trafilatura. It returns the final URL, fetch time, and SHA-256 of the extracted text. The exact snapshot text is saved in the run record at gather time. Citation checks use the saved snapshot, never a later re-fetch.
 
 The Node server is bound to `127.0.0.1`. The Python sidecar should also be bound to `127.0.0.1`. Run records in `.data/runs/` contain questions, source text, drafts, feedback, and events; files are owner-readable. Do not enter confidential material in this classroom demo. Delete `.data/` when these records are no longer needed.
 
@@ -61,12 +61,13 @@ The Node server is bound to `127.0.0.1`. The Python sidecar should also be bound
 ```mermaid
 flowchart TD
     U[Human enters research question] --> P[Planner + planner SKILL.md]
+    M[Optional user links and pasted excerpts] --> O[Node orchestrator]
     P --> Q[Suggested search queries]
     Q --> S[Python sidecar search]
-    S --> H{Human selects results}
-    H --> F[Safe fetch and extraction]
-    M[Optional pasted excerpts] --> O[Node orchestrator]
-    F --> O
+    S --> AG[Agent fetches deduped results, max 6 total]
+    AG --> PR[Packet review: human inspects and may remove gathered snapshots]
+    M --> PR
+    PR --> O
     O --> R[Researcher + researcher SKILL.md]
     R --> D[Pending cited draft]
     D --> C[Deterministic source and quote checks]
@@ -80,15 +81,15 @@ flowchart TD
     A --> L
 ```
 
-The orchestrator records `PLAN`, `ORCHESTRATE`, `EXECUTE`, `CHECK`, `HUMAN APPROVAL`, and `OUTPUT` events. Each `SKILL.md` is loaded at runtime. Live mode sends distinct role instructions to the [OpenAI Responses API](https://platform.openai.com/docs/api-reference/responses) with [structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs). Offline mode uses deterministic equivalents for a reproducible demo.
+The orchestrator records `INPUT`, `GATHER`, `PACKET`, `PLAN`, `ORCHESTRATE`, `EXECUTE`, `CHECK`, `HUMAN APPROVAL`, `OUTPUT`, and `ERROR` events. Each `SKILL.md` is loaded at runtime. Every run is live: role instructions go to the [OpenAI Responses API](https://platform.openai.com/docs/api-reference/responses) with [structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs). There is no offline or deterministic fallback.
 
 ## Interfaces and approval gate
 
-- `POST /api/search` accepts `{ query, mode, maxResults? }`, asks the Planner for search queries, and returns candidate results.
-- `POST /api/fetch` accepts `{ urls: [...] }` and returns success or failure for every selected URL. Successful results include a server-held `snapshotId`.
-- `POST /api/runs` accepts `{ question, sources, mode }`. Sources may be pasted `{ title, url, excerpt }` or fetched snapshots returned by `/api/fetch`.
+- `POST /api/runs` accepts `{ question, sources }` — there is no mode; a request that asks for offline mode is rejected with "Live mode required." Sources may be pasted `{ title, url, excerpt }` (up to 6). A bare link `{ url, title? }` is fetched at run start and becomes a user-supplied snapshot. The agent always gathers deduplicated candidates up to the 6-source total cap and pauses at `packet_review`.
 - `GET /api/runs/:id` returns the saved plan, source packet, draft, review, status, and events.
-- `POST /api/runs/:id/revise` accepts `{ reviewer, feedback }` and runs another full revision and review.
+- `DELETE /api/runs/:id/sources/:sid` removes an auto-gathered snapshot during `packet_review` (logged as an event).
+- `POST /api/runs/:id/confirm` confirms the packet and starts drafting.
+- `POST /api/runs/:id/revise` accepts `{ reviewer, feedback }` and re-enters the draft stage only — no new search or fetch.
 - `POST /api/runs/:id/approve` accepts `{ reviewer }` only after both checks pass.
 - `GET /api/runs/:id/export` returns the final brief only after approval.
 
@@ -96,4 +97,4 @@ The browser shows the **pending draft** so a person can evaluate it. Final outpu
 
 ## Limits
 
-`ddgs` is an unofficial search integration and may be rate-limited. No JavaScript is rendered; paywalled or script-heavy pages may fail extraction. URL checks reduce SSRF risk, but a DNS answer can change between validation and connection; this local demo is not ready for public deployment. Source authenticity, completeness, and the meaning of a claim remain human review tasks. The offline Reviewer uses a lexical support check. The [NIST AI RMF](https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10) is used as voluntary risk guidance, not certification.
+`ddgs` is an unofficial search integration and may be rate-limited. No JavaScript is rendered; paywalled or script-heavy pages may fail extraction. URL checks reduce SSRF risk, but a DNS answer can change between validation and connection; this local demo is not ready for public deployment. Source authenticity, completeness, and the meaning of a claim remain human review tasks. The reviewer's lexical support check can miss subtle overclaims or reject valid paraphrases. The [NIST AI RMF](https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-ai-rmf-10) is used as voluntary risk guidance, not certification.

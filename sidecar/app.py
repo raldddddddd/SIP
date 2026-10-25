@@ -1,6 +1,7 @@
 """Local FastAPI service for search and public-page extraction."""
 
 import asyncio
+import time
 from urllib.parse import urlsplit
 
 import httpx
@@ -29,20 +30,27 @@ def health():
 
 
 def search_web(query, max_results):
-    results = DDGS(timeout=10).text(query, max_results=max_results, backend="duckduckgo")
-    clean = []
-    for item in results or []:
-        url = str(item.get("href") or "")
-        if urlsplit(url).scheme not in {"http", "https"}:
-            continue
-        clean.append({
-            "title": str(item.get("title") or url)[:200],
-            "url": url,
-            "snippet": str(item.get("body") or "")[:500],
-        })
-    if not clean:
-        raise RuntimeError("Search returned no usable results; it may be rate-limited or blocked.")
-    return clean
+    error = None
+    for attempt in range(3):
+        try:
+            results = DDGS(timeout=10).text(query, max_results=max_results, backend="duckduckgo,yahoo")
+            clean = []
+            for item in results or []:
+                url = str(item.get("href") or "")
+                if urlsplit(url).scheme not in {"http", "https"}:
+                    continue
+                clean.append({
+                    "title": str(item.get("title") or url)[:200],
+                    "url": url,
+                    "snippet": str(item.get("body") or "")[:500],
+                })
+            if clean:
+                return clean
+            error = RuntimeError("Search returned no usable results; it may be rate-limited or blocked.")
+        except Exception as caught:
+            error = caught
+        time.sleep(1.5 * (attempt + 1))
+    raise error
 
 
 @app.post("/search")

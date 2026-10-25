@@ -1,5 +1,12 @@
 # SIP Improvement Plan: automatic search and extraction (hybrid Node + Python)
 
+> Historical record of the automatic-gathering improvement. The manual
+> "pick results and fetch" flow described below has since been removed by spec
+> 002: every run gathers automatically, the user reviews the aggregated packet
+> before drafting, and there is no offline mode. Current behavior lives in
+> [`docs/specs/002-aggregate-review/spec.md`](specs/002-aggregate-review/spec.md)
+> and the amended [`docs/specs/001-auto-gather/spec.md`](specs/001-auto-gather/spec.md).
+
 ## Goal
 
 Remove the manual "paste excerpts" step. The app searches the web (DuckDuckGo), fetches the pages a human selects, extracts clean text, and feeds that text into the existing Planner → Researcher → Reviewer → human approval pipeline. Keep OpenAI-compatible model calls working. Change as little of the existing app as possible.
@@ -72,7 +79,7 @@ Snapshot rule: the fetched text is saved in the run record. The exact-quote chec
 
 - New env vars: `OPENAI_BASE_URL` (default `https://api.openai.com/v1`), `OPENAI_API_KEY`, `OPENAI_MODEL`.
 - `model.js` builds the URL as `${OPENAI_BASE_URL}/responses`.
-- Keep the rule: a failed live call is an error, never a silent offline fallback.
+- Keep the rule: a failed live call is an error, never a silent substitution.
 - Strict `json_schema` support varies by server. The output validation in `model.js` covers this regardless of server.
 - If a target server rejects `/responses`, add an optional `OPENAI_API_MODE=chat` switch that calls `/chat/completions` instead. Do this only if needed.
 
@@ -98,7 +105,7 @@ Snapshot rule: the fetched text is saved in the run record. The exact-quote chec
 - Sidecar down gives a clear error, and pasted sources still work.
 - Curly quotes and nbsp in a page do not break a valid quote match.
 - Injection text inside a fetched page blocks release.
-- Live API failure still produces an error with no offline substitution.
+- Live API failure still produces an error with no silent substitution.
 
 ## Migration order
 
