@@ -131,3 +131,16 @@ test('compatible server may use JSON object format while retaining validation', 
     }
   });
 });
+
+test('TC-11 live model calls allow 120s before aborting', async () => {
+  const good = { subquestions: ['Why?'], evidenceNeeds: [], approach: 'Inspect evidence', searchQueries: ['research review'] };
+  const original = AbortSignal.timeout;
+  const seen = [];
+  AbortSignal.timeout = ms => { seen.push(ms); return original.call(AbortSignal, ms); };
+  try {
+    const fetcher = async () => ({ ok: true, json: async () => ({ output: [{ content: [{ type: 'output_text', text: JSON.stringify(good) }] }] }) });
+    await runRole('planner', 'live', { question: 'Why?', sources: [] }, { apiKey: 'test-only', fetcher });
+    await runRole('planner', 'live', { question: 'Why?', sources: [] }, { apiKey: 'test-only', timeoutMs: 5000, fetcher });
+  } finally { AbortSignal.timeout = original; }
+  assert.deepEqual(seen, [120000, 5000]);
+});

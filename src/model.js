@@ -73,6 +73,7 @@ export async function runRole(role, mode, payload, options = {}) {
   const apiKey = options.apiKey ?? process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('Live mode requires OPENAI_API_KEY. No offline output was substituted.');
   const model = options.model ?? process.env.OPENAI_MODEL ?? 'gpt-4.1-mini';
+  const modelTimeoutMs = options.timeoutMs ?? 120000;
   const fetcher = options.fetcher ?? fetch;
   const baseUrl = options.baseUrl ?? process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1';
   const parsedBase = new URL(baseUrl);
@@ -97,7 +98,7 @@ export async function runRole(role, mode, payload, options = {}) {
         input: `BEGIN_UNTRUSTED_DATA\n${JSON.stringify(payload)}\nEND_UNTRUSTED_DATA`,
         text: { format: textFormat }
       }),
-      signal: AbortSignal.timeout(45000)
+      signal: AbortSignal.timeout(modelTimeoutMs)
     });
     if (!response.ok) throw new Error(`OpenAI request failed (HTTP ${response.status}). No offline output was substituted.`);
     const data = await response.json();
